@@ -15,12 +15,28 @@ export interface SignUpDetails {
 export type SignUpFailureCode =
   | "email-taken"
   | "password-breached"
-  | "not-configured";
+  | "workspace-name-unavailable"
+  | "invalid-details"
+  | "rate-limited"
+  | "request-failed";
+
+export interface SignUpFieldError {
+  readonly path: string;
+  readonly message: string;
+}
 
 export type SignUpOutcome =
-  | { readonly status: "signed-up"; readonly redirectTo: string }
-  | { readonly status: "verification-required"; readonly email: string }
-  | { readonly status: "failed"; readonly code: SignUpFailureCode };
+  | {
+      readonly status: "verification-required";
+      readonly email: string;
+      readonly expiresInSeconds: number;
+      readonly resendAvailableInSeconds: number;
+    }
+  | {
+      readonly status: "failed";
+      readonly code: SignUpFailureCode;
+      readonly fieldErrors?: readonly SignUpFieldError[];
+    };
 
 export type PasswordStrengthTone = "neutral" | "danger" | "warning" | "success";
 

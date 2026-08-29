@@ -2,12 +2,21 @@ import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
 const LOCAL_ORIGIN = "http://localhost:3000";
+const LOCAL_GATEWAY_ORIGIN = "http://127.0.0.1:8080";
+const BASE64_32_BYTE_KEY = /^[A-Za-z0-9+/_-]{43}=?$/u;
 
 export const env = createEnv({
   // Note: server only variables
   server: {
     CI: z.stringbool().default(false),
     PLAYWRIGHT_BASE_URL: z.url().default(LOCAL_ORIGIN),
+    API_GATEWAY_URL: z.url().default(LOCAL_GATEWAY_ORIGIN),
+    SESSION_SECRET: z
+      .string()
+      .regex(
+        BASE64_32_BYTE_KEY,
+        "must be a base64-encoded 32-byte key — generate one with `openssl rand -base64 32`",
+      ),
   },
 
   // Note: browser-accessible variables
@@ -22,7 +31,7 @@ export const env = createEnv({
       .default("development"),
   },
 
-  // Note: runtime mapping for relevant variables
+  // Note: runtime mapping for relevant variables. Only client and shared
   experimental__runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,

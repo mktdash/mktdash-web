@@ -1,8 +1,11 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 import "./src/shared/config/env";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  turbopack: {
+    root: __dirname,
+  },
 };
 
 export default nextConfig;
