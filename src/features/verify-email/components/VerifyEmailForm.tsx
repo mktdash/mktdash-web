@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type SubmitEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useController, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,6 +38,10 @@ const VERIFY_FAILURE_MESSAGE: Record<VerifyEmailFailureCode, string> = {
     "That code has expired. Send a new one and enter the code from the newest email.",
   "too-many-attempts":
     "Too many incorrect attempts. Send a new code before trying again.",
+  "service-error":
+    "Something went wrong on our side, so we could not confirm your code. Your code has not been used up — try again in a moment.",
+  "session-not-started":
+    "Your email is confirmed, but we could not start your session. Sign in to continue — do not request another code.",
   "request-failed":
     "We could not reach the verification service. Check your connection and try again.",
 };
@@ -58,6 +63,7 @@ const VerifyEmailForm = ({ email }: VerifyEmailFormProps) => {
   const [failureCode, setFailureCode] = useState<VerifyEmailFailureCode | null>(
     null,
   );
+  const [failureReference, setFailureReference] = useState<string | null>(null);
   const [resendFailureCode, setResendFailureCode] =
     useState<ResendVerificationFailureCode | null>(null);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
@@ -88,6 +94,7 @@ const VerifyEmailForm = ({ email }: VerifyEmailFormProps) => {
     }
 
     setFailureCode(null);
+    setFailureReference(null);
     setResendFailureCode(null);
     setResendNotice(null);
 
@@ -96,7 +103,12 @@ const VerifyEmailForm = ({ email }: VerifyEmailFormProps) => {
 
       if (outcome.status === "failed") {
         setFailureCode(outcome.code);
-        field.onChange("");
+        setFailureReference(outcome.reference ?? null);
+
+        if (outcome.code !== "service-error") {
+          field.onChange("");
+        }
+
         codeInputRef.current?.focus();
         return;
       }
@@ -119,6 +131,7 @@ const VerifyEmailForm = ({ email }: VerifyEmailFormProps) => {
     }
 
     setFailureCode(null);
+    setFailureReference(null);
     setResendFailureCode(null);
     setResendNotice(null);
 
@@ -178,9 +191,29 @@ const VerifyEmailForm = ({ email }: VerifyEmailFormProps) => {
                 className="mt-px size-3.5 flex-none text-danger-600"
                 strokeWidth={2}
               />
-              <p className="text-base leading-normal font-medium text-danger-600">
-                {VERIFY_FAILURE_MESSAGE[failureCode]}
-              </p>
+              <div className="flex flex-col gap-1">
+                <p className="text-base leading-normal font-medium text-danger-600">
+                  {VERIFY_FAILURE_MESSAGE[failureCode]}
+                  {failureCode === "session-not-started" ? (
+                    <>
+                      {" "}
+                      <Link
+                        href="/login"
+                        className="font-bold text-link hover:text-link-hover"
+                      >
+                        Go to sign in
+                      </Link>
+                      .
+                    </>
+                  ) : null}
+                </p>
+
+                {failureReference ? (
+                  <p className="text-xs leading-normal font-medium text-text-8">
+                    Reference {failureReference}
+                  </p>
+                ) : null}
+              </div>
             </div>
           ) : codeError ? (
             <p id={codeErrorId} className="text-xs font-bold text-danger-600">

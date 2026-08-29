@@ -7,11 +7,17 @@ export type VerifyEmailFailureCode =
   | "invalid-code"
   | "code-expired"
   | "too-many-attempts"
+  | "service-error"
+  | "session-not-started"
   | "request-failed";
 
 export type VerifyEmailOutcome =
   | { readonly status: "verified"; readonly redirectTo: string }
-  | { readonly status: "failed"; readonly code: VerifyEmailFailureCode };
+  | {
+      readonly status: "failed";
+      readonly code: VerifyEmailFailureCode;
+      readonly reference?: string;
+    };
 
 export interface ResendVerificationRequest {
   readonly email: string;

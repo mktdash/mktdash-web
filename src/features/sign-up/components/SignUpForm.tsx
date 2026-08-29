@@ -5,22 +5,54 @@ import { useRouter } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CircleAlert } from "lucide-react";
-import { signUp } from "../api/signUp";
+import { useSignUp } from "../hooks/useSignUp";
 import { signUpSchema, type SignUpFormValues } from "../schemas/signUp.schema";
-import type { SignUpFailureCode, SignUpStep } from "../types/signUp.types";
+import type {
+  SignUpFailureCode,
+  SignUpFieldError,
+  SignUpOutcome,
+  SignUpStep,
+} from "../types/signUp.types";
 import SignUpAccountStep from "./SignUpAccountStep";
 import SignUpStepIndicator from "./SignUpStepIndicator";
 import SignUpWorkspaceStep from "./SignUpWorkspaceStep";
 
 const ACCOUNT_FIELDS = ["fullName", "email", "password"] as const;
 
+const FORM_FIELDS = [
+  ...ACCOUNT_FIELDS,
+  "workspaceName",
+  "tenancy",
+] as const satisfies readonly (keyof SignUpFormValues)[];
+
 const FAILURE_MESSAGE: Record<SignUpFailureCode, string> = {
   "email-taken":
     "An account already exists for that email address. Sign in instead, or use a different one.",
   "password-breached":
     "That password appears in known breach lists. Pick another one before continuing.",
-  "not-configured":
-    "Sign-up is not connected yet. Nothing was created — try again once your workspace has been set up.",
+  "workspace-name-unavailable":
+    "That workspace name could not be reserved. Try a slightly different one.",
+  "invalid-details":
+    "Some of those details were rejected. Check the highlighted fields and try again.",
+  "rate-limited":
+    "Too many sign-up attempts from here. Wait a minute, then try again.",
+  "request-failed":
+    "We could not reach the sign-up service. Nothing was created — check your connection and try again.",
+};
+
+const STEP_FOR_FAILURE: Record<SignUpFailureCode, SignUpStep | null> = {
+  "email-taken": 1,
+  "password-breached": 1,
+  "workspace-name-unavailable": 2,
+  "invalid-details": null,
+  "rate-limited": null,
+  "request-failed": null,
+};
+
+const toFormField = (path: string): keyof SignUpFormValues | null => {
+  const leaf = path.split(".").at(-1) ?? "";
+
+  return FORM_FIELDS.find((field) => field === leaf) ?? null;
 };
 
 const SignUpForm = () => {
@@ -31,6 +63,8 @@ const SignUpForm = () => {
   const [failureCode, setFailureCode] = useState<SignUpFailureCode | null>(
     null,
   );
+
+  const signUpMutation = useSignUp();
 
   const form = useForm<SignUpFormValues>({
     resolver: zodResolver(signUpSchema),
@@ -79,27 +113,58 @@ const SignUpForm = () => {
     setStep(1);
   };
 
+  const applyFieldErrors = (
+    fieldErrors: readonly SignUpFieldError[],
+  ): boolean => {
+    let rejectedAnAccountField = false;
+
+    for (const { path, message } of fieldErrors) {
+      const field = toFormField(path);
+
+      if (!field) {
+        continue;
+      }
+
+      form.setError(field, { type: "server", message });
+
+      if (ACCOUNT_FIELDS.some((candidate) => candidate === field)) {
+        rejectedAnAccountField = true;
+      }
+    }
+
+    return rejectedAnAccountField;
+  };
+
   const submitSignUp = form.handleSubmit(async (values) => {
     setFailureCode(null);
 
-    const outcome = await signUp(values);
+    const transportFailure: SignUpOutcome = {
+      status: "failed",
+      code: "request-failed",
+    };
+
+    const outcome = await signUpMutation
+      .mutateAsync(values)
+      .catch(() => transportFailure);
 
     if (outcome.status === "failed") {
-      setFailureCode(outcome.code);
-      if (outcome.code !== "not-configured") {
-        setStep(1);
-      }
-      return;
-    }
-
-    if (outcome.status === "verification-required") {
-      router.replace(
-        `/verify-email?email=${encodeURIComponent(outcome.email)}`,
+      const rejectedAnAccountField = applyFieldErrors(
+        outcome.fieldErrors ?? [],
       );
+
+      setFailureCode(outcome.code);
+
+      const targetStep =
+        STEP_FOR_FAILURE[outcome.code] ?? (rejectedAnAccountField ? 1 : null);
+
+      if (targetStep) {
+        setStep(targetStep);
+      }
+
       return;
     }
 
-    router.replace(outcome.redirectTo);
+    router.replace(`/verify-email?email=${encodeURIComponent(outcome.email)}`);
   });
 
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
@@ -144,7 +209,9 @@ const SignUpForm = () => {
           />
         ) : (
           <SignUpWorkspaceStep
-            isSubmitting={form.formState.isSubmitting}
+            isSubmitting={
+              form.formState.isSubmitting || signUpMutation.isPending
+            }
             onBack={goToAccountStep}
           />
         )}
