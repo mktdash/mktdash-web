@@ -1,0 +1,57 @@
+# --- Dependencies & build output (reinstalled/rebuilt inside the image) -------
+node_modules
+.next
+out
+build
+.pnpm-store
+.turbo
+
+# --- Secrets: .env.example is the only env file allowed in the context --------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- VCS & CI ----------------------------------------------------------------
+.git
+.gitignore
+.gitattributes
+.github
+.vercel
+
+# --- Docker ------------------------------------------------------------------
+Dockerfile
+.dockerignore
+docker-compose*.yml
+compose*.yaml
+
+# --- Tests, coverage & reports (not part of the production build) ------------
+tests
+playwright.config.ts
+playwright-report
+test-results
+coverage
+vitest.config.ts
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# --- Editor, OS & agent files ------------------------------------------------
+.vscode
+.idea
+.DS_Store
+**/.DS_Store
+.claude
+CLAUDE.md
+*.md
+!README.md
+
+# --- Logs & caches -----------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.tsbuildinfo
