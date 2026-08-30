@@ -1,3 +1,6 @@
+fetchRetries: 5
+fetchTimeout: 600000
+
 allowBuilds:
   esbuild: true
   msw: true
