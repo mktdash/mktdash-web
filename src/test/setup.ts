@@ -73,6 +73,10 @@ beforeAll(() => {
         item: () => null,
       }) as unknown as DOMRectList;
   }
+
+  if (!Document.prototype.elementFromPoint) {
+    Document.prototype.elementFromPoint = () => null;
+  }
 });
 
 afterEach(() => {
